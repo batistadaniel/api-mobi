@@ -101,6 +101,7 @@ app.get('/linha/:numero', async (req, res) => {
         shape: detalhe ? detalhe.shape : null,
         veiculos_operando: veiculos.map(v => ({
           prefixo: v.vehicleId,
+          horario_inicio: v.startTime,
           ultima_atualizacao: v.positionTime,
           localizacao: { lat: v.lat, lng: v.lng },
           progresso_percentual: v.percTravelled,
