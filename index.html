@@ -2,18 +2,108 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background-color: #f9f9f9; }
-        .search-wrapper { position: sticky; top: 0; background: #f9f9f9; padding: 10px 0; z-index: 100; width: 600px; margin: auto; }
-        input { width: 100%; padding: 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
-        #listaOpcoes { width: 600px; margin: 10px auto; display: none; }
-        .card-opcao { background: white; padding: 15px; margin-bottom: 8px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; align-items: center; cursor: pointer; border: 2px solid transparent; }
-        .card-opcao:hover, .card-opcao.ativa { border-color: #ff9800; background: #fffdf9; }
-        .badge { 
-            padding: 4px 8px; border-radius: 4px; margin-right: 15px; font-weight: bold; 
-            min-width: 45px; text-align: center; border: 1px solid rgba(0,0,0,0.1);
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
         }
-        #resultado { margin: 20px auto; width: 600px; font-size: 18px; color: #333; font-weight: bold; }
+
+        body { 
+            font-family: 'Segoe UI', sans-serif; 
+            padding: 20px; 
+            background-color: #f9f9f9; 
+        }
+    
+        .search-wrapper, #listaOpcoes, #resultado {
+            width: 95%;
+            max-width: 600px;
+            margin: 10px auto;
+        }
+
+        .search-wrapper {
+            position: sticky; 
+            top: 0; 
+            background: #f9f9f9; 
+            padding: 10px 0; 
+            z-index: 100;
+        }
+    
+        input {
+            outline: none; 
+            width: 100%; 
+            padding: 15px; 
+            border: 1px solid #ddd;
+            border-radius: 8px; 
+            font-size: 16px;
+        }
+    
+        input:focus { 
+            border-color: #aaa; 
+            box-shadow: 0 0 5px rgba(170, 170, 170, 0.5); 
+        }
+        
+        #listaOpcoes { 
+            display: none; 
+            margin-top: 0; 
+        }
+    
+        .card-opcao {
+            background: white; 
+            padding: 15px; 
+            margin-bottom: 8px; 
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); 
+            display: flex;
+            /* Centralizado verticalmente */
+            align-items: center; 
+            cursor: pointer; 
+            border: 2px solid transparent;
+            overflow: hidden;
+        }
+    
+        .card-opcao:hover, 
+        .card-opcao.ativa { 
+            border-color: #ece9e4; 
+            background: #fffdf9; 
+        }
+    
+        .badge {
+            padding: 6px 10px; 
+            border-radius: 4px; 
+            margin-right: 15px;
+            font-weight: bold; 
+            min-width: 50px; 
+            text-align: center;
+            border: 1px solid rgba(0, 0, 0, 0.1); 
+            flex-shrink: 0; 
+        }
+        
+        /* opcao que exibi tudo com quebra de linha */
+        .nome-linha {
+            font-weight: 500;
+            word-break: break-word; 
+            overflow-wrap: break-word;
+            white-space: normal; 
+            flex: 1;
+        }
+
+        /* opcao que exibi sem quebra de linha mas com rolagem */
+        /* .nome-linha {
+            white-space: nowrap;
+            overflow-x: auto;
+            flex: 1;
+            min-width: 0;
+            padding-bottom: 2px;
+            scrollbar-width: none;
+        } */
+    
+        #resultado { 
+            font-size: 18px; 
+            color: #333; 
+            font-weight: bold; 
+        }
     </style>
 </head>
 <body>
@@ -32,12 +122,9 @@
         const listaOpcoes = document.getElementById('listaOpcoes');
         const display = document.getElementById('resultado');
 
-        // Carregamento único (Cache)
         fetch('http://localhost:3000/linhas')
             .then(res => res.json())
-            .then(data => {
-                dadosOriginais = data.linhas;
-            })
+            .then(data => { dadosOriginais = data.linhas; })
             .catch(err => console.error("Erro ao carregar:", err));
 
         function renderizar(termo = "") {
@@ -53,16 +140,19 @@
 
             const filtrados = listaOrdenada.filter(item => {
                 const t = termo.toLowerCase();
-                return (item.nome && item.nome.toLowerCase().includes(t)) || (item.numero && item.numero.includes(t));
+                return (item.nome && item.nome.toLowerCase().includes(t)) || 
+                       (item.numero && item.numero.includes(t));
             });
 
-            filtrados.forEach((item, index) => {
+            filtrados.forEach((item) => {
                 const card = document.createElement('div');
                 card.className = 'card-opcao';
-                
-                // Aplica a cor da operadora vinda do JSON
                 const cor = item.cor_operadora || '#eeeeee';
-                card.innerHTML = `<span class="badge" style="background-color: ${cor}">${item.numero || ""}</span> ${item.nome}`;
+                
+                card.innerHTML = `
+                    <span class="badge" style="background-color: ${cor}">${item.numero || ""}</span> 
+                    <span class="nome-linha">${item.nome}</span>
+                `;
                 
                 card.onclick = () => selecionar(item);
                 listaOpcoes.appendChild(card);
@@ -75,9 +165,9 @@
             display.textContent = `Você escolheu: ${item.nome}`;
             input.value = '';
             listaOpcoes.style.display = 'none';
+            input.blur();
         }
 
-        // Navegação por teclado
         input.addEventListener('keydown', (e) => {
             const cards = document.querySelectorAll('.card-opcao');
             if (e.key === 'ArrowDown') {
