@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background-color: #f9f9f9; }
+        .search-wrapper { position: sticky; top: 0; background: #f9f9f9; padding: 10px 0; z-index: 100; width: 600px; margin: auto; }
+        input { width: 100%; padding: 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
+        #listaOpcoes { width: 600px; margin: 10px auto; display: none; }
+        .card-opcao { background: white; padding: 15px; margin-bottom: 8px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; align-items: center; cursor: pointer; border: 2px solid transparent; }
+        .card-opcao:hover, .card-opcao.ativa { border-color: #ff9800; background: #fffdf9; }
+        .badge { 
+            padding: 4px 8px; border-radius: 4px; margin-right: 15px; font-weight: bold; 
+            min-width: 45px; text-align: center; border: 1px solid rgba(0,0,0,0.1);
+        }
+        #resultado { margin: 20px auto; width: 600px; font-size: 18px; color: #333; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="search-wrapper">
+        <input type="text" id="filtro" placeholder="Busque por sua linha" autocomplete="off">
+    </div>
+    
+    <div id="listaOpcoes"></div>
+    <div id="resultado"></div>
+
+    <script>
+        let dadosOriginais = [];
+        let indiceAtivo = -1;
+        const input = document.getElementById('filtro');
+        const listaOpcoes = document.getElementById('listaOpcoes');
+        const display = document.getElementById('resultado');
+
+        // Carregamento único (Cache)
+        fetch('http://localhost:3000/linhas')
+            .then(res => res.json())
+            .then(data => {
+                dadosOriginais = data.linhas;
+            })
+            .catch(err => console.error("Erro ao carregar:", err));
+
+        function renderizar(termo = "") {
+            listaOpcoes.innerHTML = '';
+            indiceAtivo = -1;
+            
+            const listaOrdenada = [...dadosOriginais].sort((a, b) => {
+                const prioridade = ["Ceilândia", "Samambaia"];
+                if (prioridade.includes(a.nome) && !prioridade.includes(b.nome)) return -1;
+                if (!prioridade.includes(a.nome) && prioridade.includes(b.nome)) return 1;
+                return 0;
+            });
+
+            const filtrados = listaOrdenada.filter(item => {
+                const t = termo.toLowerCase();
+                return (item.nome && item.nome.toLowerCase().includes(t)) || (item.numero && item.numero.includes(t));
+            });
+
+            filtrados.forEach((item, index) => {
+                const card = document.createElement('div');
+                card.className = 'card-opcao';
+                
+                // Aplica a cor da operadora vinda do JSON
+                const cor = item.cor_operadora || '#eeeeee';
+                card.innerHTML = `<span class="badge" style="background-color: ${cor}">${item.numero || ""}</span> ${item.nome}`;
+                
+                card.onclick = () => selecionar(item);
+                listaOpcoes.appendChild(card);
+            });
+            
+            listaOpcoes.style.display = filtrados.length > 0 ? 'block' : 'none';
+        }
+
+        function selecionar(item) {
+            display.textContent = `Você escolheu: ${item.nome}`;
+            input.value = '';
+            listaOpcoes.style.display = 'none';
+        }
+
+        // Navegação por teclado
+        input.addEventListener('keydown', (e) => {
+            const cards = document.querySelectorAll('.card-opcao');
+            if (e.key === 'ArrowDown') {
+                indiceAtivo = Math.min(indiceAtivo + 1, cards.length - 1);
+                atualizarSelecao(cards);
+            } else if (e.key === 'ArrowUp') {
+                indiceAtivo = Math.max(indiceAtivo - 1, 0);
+                atualizarSelecao(cards);
+            } else if (e.key === 'Enter' && indiceAtivo > -1) {
+                cards[indiceAtivo].click();
+            }
+        });
+
+        function atualizarSelecao(cards) {
+            cards.forEach((c, i) => c.classList.toggle('ativa', i === indiceAtivo));
+            if (indiceAtivo > -1) cards[indiceAtivo].scrollIntoView({ block: 'nearest' });
+        }
+
+        input.addEventListener('input', (e) => renderizar(e.target.value));
+        input.addEventListener('focus', () => renderizar(input.value));
+        document.addEventListener('click', (e) => { if (!e.target.closest('.search-wrapper')) listaOpcoes.style.display = 'none'; });
+    </script>
+</body>
+</html>
