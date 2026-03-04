@@ -66,7 +66,7 @@ app.get('/linha/:numero', async (req, res) => {
       }
       if (!match) {
         const buscaLimpa = numeroBusca.replace(/\./g, "").padStart(4, "0");
-        match = dataGeral.linhas.find(l => 
+        match = dataGeral.linhas.find(l =>
           (l.numero || "").replace(/\./g, "").padStart(4, "0") === buscaLimpa
         );
       }
@@ -82,7 +82,7 @@ app.get('/linha/:numero', async (req, res) => {
     const m = await resTimetable.json();
 
     // 3. Busca Detalhes da Viagem e Veículos em paralelo para cada trip
-    const promessas = m.timetable.trips.map(trip => 
+    const promessas = m.timetable.trips.map(trip =>
       Promise.all([
         fetch(`https://mobilibus.com/api/trip-details?origin=web&v=2&trip_id=${trip.tripId}`).then(r => r.json()).catch(() => null),
         fetch(`https://mobilibus.com/api/vehicles?origin=web&trip_id=${trip.tripId}&route_id=${route_id}`).then(r => r.json()).catch(() => [])
@@ -96,6 +96,7 @@ app.get('/linha/:numero', async (req, res) => {
       const [detalhe, veiculos] = resultados[index];
       return {
         sentido: t.directionId === 0 ? "Ida" : "Volta",
+        directionId: t.directionId,
         id_viagem: t.tripId,
         destino: t.tripDesc,
         shape: detalhe ? detalhe.shape : null,
@@ -160,57 +161,141 @@ app.get('/linha/:numero', async (req, res) => {
 
 
 app.get('/previsao-parada/:stop_hash', async (req, res) => {
-    const { stop_hash } = req.params;
-    const url = `https://mobilibus.com/api/departures?v=2&stop_hash=${stop_hash}`;
+  const inicio = performance.now();
+  const { stop_hash } = req.params;
+  const url = `https://mobilibus.com/api/departures?v=2&stop_hash=${stop_hash}`;
 
-    try {
-        const response = await fetch(url);
-        
-        if (!response.ok) {
-            return res.status(response.status).json({ error: 'Erro ao buscar dados na Mobilibus' });
-        }
-
-        const data = await response.json();
-
-        // 1. Pegamos a informação da parada (stops costuma ser um array, pegamos o primeiro)
-        const stopInfo = data.stops && data.stops[0] ? data.stops[0] : {};
-
-        // 2. Mapeamos as viagens e partidas
-        const partidasFormatadas = data.trips.map(trip => {
-            return {
-                numero: trip.shortName,
-                nome: trip.longName,
-                destino: trip.headsign,
-                sentido: trip.directionId === 0 ? "Indo" : "Voltando",
-                cor: trip.color,
-                sequenciaParadaLinha: trip.stopSequence,
-                previsoes: trip.departures.map(dep => ({
-                    horario: dep.time.substring(0, 5), // Pega apenas HH:mm
-                    previsaoParaAmanha: dep.nextDay,
-                    prefixoVeiculo: dep.vehicleId || "N/A",
-                    paradaAtualVeiculo: dep.stopSequence || "N/A"
-                }))
-            };
-        });
-
-        // 3. Montamos a resposta final conforme seu resumo
-        const resultado = {
-            id: stopInfo.stopId,
-            nome: stopInfo.name,
-            coordenadas: {
-                lat: stopInfo.lat,
-                lon: stopInfo.lon
-            },
-            partidas: partidasFormatadas
-        };
-
-        res.json(resultado);
-
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Erro interno no servidor' });
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      return res.status(response.status).json({ error: 'Erro ao buscar dados na Mobilibus' });
     }
+
+    const data = await response.json();
+    const stopInfo = data.stops && data.stops[0] ? data.stops[0] : {};
+
+    // 1. Criamos um mapa de alertas indexado pelo routeId para acesso rápido
+    // Caso existam vários alertas para a mesma rota, este código agrupa em um array
+    const mapaAlertas = (data.alerts || []).reduce((acc, alert) => {
+      if (!acc[alert.routeId]) acc[alert.routeId] = [];
+      acc[alert.routeId].push({
+        titulo: alert.header,
+        detalhes: alert.details,
+        efeito: alert.effect === "SIGNIFICANT_DELAYS" ? "Atrasos Significativos" : alert.effect
+      });
+      return acc;
+    }, {});
+
+    // 2. Mapeamos as viagens e injetamos o alerta se houver match no routeId
+    const partidasFormatadas = data.trips.map(trip => {
+      return {
+        numero: trip.shortName,
+        nome: trip.longName,
+        destino: trip.headsign,
+        sentido: trip.directionId === 0 ? "Indo" : "Voltando",
+        cor: trip.color,
+        sequenciaParadaLinha: trip.stopSequence,
+        // Injetamos o alerta aqui se o routeId da trip existir no nosso mapa
+        alertas: mapaAlertas[trip.routeId] || [], 
+        previsoes: trip.departures.map(dep => ({
+          horario: dep.time.substring(0, 5),
+          previsaoParaAmanha: dep.nextDay,
+          prefixoVeiculo: dep.vehicleId || "N/A",
+          paradaAtualVeiculo: dep.stopSequence || "N/A"
+        }))
+      };
+    });
+
+    const fim = (performance.now() - inicio).toFixed(2);
+    
+    const resultado = {
+      tempo_execucao: `${fim}ms`,
+      id: stopInfo.stopId,
+      nome: stopInfo.name,
+      coordenadas: {
+        lat: stopInfo.lat,
+        lon: stopInfo.lon
+      },
+      partidas: partidasFormatadas
+    };
+
+    res.json(resultado);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erro interno no servidor' });
+  }
 });
+
+
+// backup da função de previsão de parada com cache local para evitar múltiplas chamadas à API da Mobilibus para a mesma linha em um curto período de tempo. O cache é implementado usando um Map, onde a chave é o número da linha e o valor é a resposta da API. Antes de fazer uma nova chamada, a função verifica se a informação já está presente no cache e, se estiver, retorna essa informação diretamente, economizando tempo e recursos.
+// const cacheLinhas = new Map();
+
+// async function getInfoLinha(numeroLinha) {
+//   if (cacheLinhas.has(numeroLinha)) return cacheLinhas.get(numeroLinha);
+
+//   try {
+//     const res = await fetch(`http://localhost:3000/linha/${numeroLinha}`);
+//     if (!res.ok) return null;
+//     const data = await res.json();
+//     cacheLinhas.set(numeroLinha, data);
+//     return data;
+//   } catch (e) {
+//     return null;
+//   }
+// }
+
+// app.get('/previsao-parada/:stop_hash', async (req, res) => {
+//   const inicio = performance.now();
+
+//   const { stop_hash } = req.params;
+//   const url = `https://mobilibus.com/api/departures?v=2&stop_hash=${stop_hash}`;
+
+//   try {
+//     const response = await fetch(url);
+//     if (!response.ok) return res.status(response.status).json({ error: 'Erro na Mobilibus' });
+//     const data = await response.json();
+
+//     const stopInfo = data.stops?.[0] || {};
+
+//     // Usamos Promise.all para processar as linhas em paralelo
+//     const partidasFormatadas = await Promise.all(data.trips.map(async (trip) => {
+//       // Busca a info correta da linha
+//       const infoLinha = await getInfoLinha(trip.shortName);
+
+//       // Procura a viagem correspondente no seu endpoint pelo directionId
+//       const viagemInfo = infoLinha?.viagens.find(v => v.directionId === trip.directionId);
+
+//       return {
+//         numero: trip.shortName,
+//         nome: infoLinha?.nome || trip.longName, // Prioriza o seu endpoint
+//         destino: viagemInfo?.destino || trip.headsign, // Usa o destino do seu endpoint
+//         sentido: trip.directionId === 0 ? "Indo" : "Voltando",
+//         cor: trip.color,
+//         sequenciaParadaLinha: trip.stopSequence,
+//         previsoes: trip.departures.map(dep => ({
+//           horario: dep.time.substring(0, 5),
+//           previsaoParaAmanha: dep.nextDay,
+//           prefixoVeiculo: dep.vehicleId || "N/A",
+//           paradaAtualVeiculo: dep.stopSequence || "N/A"
+//         }))
+//       };
+//     }));
+
+//     const fim = (performance.now() - inicio).toFixed(2);
+
+//     res.json({
+//       tempo_execucao: `${fim}ms`,
+//       id: stopInfo.stopId,
+//       nome: stopInfo.name,
+//       coordenadas: { lat: stopInfo.lat, lon: stopInfo.lon },
+//       partidas: partidasFormatadas
+//     });
+
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ error: 'Erro interno' });
+//   }
+// });
 
 // app.get('/veiculo/:numero_linha', (req, res) => {
 

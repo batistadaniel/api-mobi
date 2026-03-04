@@ -18,7 +18,7 @@
     
         .search-wrapper, #listaOpcoes, #resultado {
             width: 95%;
-            max-width: 600px;
+            max-width: 1000px;
             margin: 10px auto;
         }
 
@@ -78,6 +78,8 @@
             text-align: center;
             border: 1px solid rgba(0, 0, 0, 0.1); 
             flex-shrink: 0; 
+            color: #0e0d0d;
+            /* -webkit-text-stroke: .3px rgb(0, 0, 0); */
         }
         
         /* opcao que exibi tudo com quebra de linha */
@@ -162,7 +164,10 @@
         }
 
         function selecionar(item) {
-            display.textContent = `Você escolheu: ${item.nome}`;
+            display.innerHTML = `
+                <div>Você escolheu: ${item.nome}</div>
+                <div>Route ID: ${item.route_id}</div>
+            `;
             input.value = '';
             listaOpcoes.style.display = 'none';
             input.blur();
