@@ -94,6 +94,15 @@ app.get('/linha/:numero', async (req, res) => {
     // 4. Formatação de Viagens (incluindo Veículos)
     const viagensFormatadas = m.timetable.trips.map((t, index) => {
       const [detalhe, veiculos] = resultados[index];
+
+      // Função auxiliar para formatar os segundos
+      const formatarDelay = (segundos) => {
+        const abs = Math.abs(segundos);
+        const m = Math.floor(abs / 60);
+        const s = abs % 60;
+        return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+      };
+
       return {
         sentido: t.directionId === 0 ? "Ida" : "Volta",
         directionId: t.directionId,
@@ -107,7 +116,10 @@ app.get('/linha/:numero', async (req, res) => {
           localizacao: { lat: v.lat, lng: v.lng },
           progresso_percentual: v.percTravelled,
           atraso_segundos: v.delay,
+          // Usando a lógica que verificamos (mantendo a sua original, 
+          // ou invertendo se você preferir basear no sinal que descobrimos)
           status: v.delay > 0 ? "Atrasado" : (v.delay < 0 ? "Adiantado" : "No horário"),
+          delay_formatado: formatarDelay(v.delay), // <--- AQUI A NOVA PROPRIEDADE
           sequencia_parada: v.seq
         }))
       };
