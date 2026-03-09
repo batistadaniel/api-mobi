@@ -1,123 +1,205 @@
 <!DOCTYPE html>
 <html lang="pt-br">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <style>
-        * { 
-            margin: 0; 
-            padding: 0; 
-            box-sizing: border-box; 
+        :root {
+            --bg: #0f172a;
+            --card: #1e293b;
+            --accent: #38bdf8;
+            --text: #f1f5f9;
+            --text-muted: #94a3b8;
         }
 
-        body { 
-            font-family: 'Segoe UI', sans-serif; 
-            padding: 20px; 
-            background-color: #f9f9f9; 
+        :root.light {
+            --bg: #f1f5f9;
+            --card: #ffffff;
+            --accent: #38bdf8;
+            --text: #0f172a;
+            --text-muted: #475569;
         }
-    
-        .search-wrapper, #listaOpcoes, #resultado {
-            width: 95%;
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            padding: 40px 20px;
+        }
+
+        .wrapper {
             max-width: 1000px;
-            margin: 10px auto;
+            margin: auto;
         }
+
+        /* toggle */
+
+        .theme-toggle {
+            position: fixed;
+            top: 10px;
+            right: 20px;
+            width: 70px;
+            height: 34px;
+            background: var(--card);
+            border-radius: 50px;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            padding: 4px;
+            cursor: pointer;
+        }
+
+        .toggle-circle {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: var(--text);
+            transition: transform .3s;
+        }
+
+        :root.light .toggle-circle {
+            transform: translateX(36px);
+        }
+
+        /* busca */
 
         .search-wrapper {
-            position: sticky; 
-            top: 0; 
-            background: #f9f9f9; 
-            padding: 10px 0; 
+            position: sticky;
+            top: 0;
+            background: var(--bg);
+            padding: 10px 0;
             z-index: 100;
         }
-    
+
         input {
-            outline: none; 
-            width: 100%; 
-            padding: 15px; 
-            border: 1px solid #ddd;
-            border-radius: 8px; 
+            width: 100%;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, .08);
+            background: var(--card);
+            color: var(--text);
             font-size: 16px;
+            outline: none;
         }
-    
-        input:focus { 
-            border-color: #aaa; 
-            box-shadow: 0 0 5px rgba(170, 170, 170, 0.5); 
+
+        input:focus {
+            border-color: var(--accent);
         }
-        
-        #listaOpcoes { 
-            display: none; 
-            margin-top: 0; 
+
+        /* lista */
+
+        #listaOpcoes {
+            display: none;
+            margin-top: 10px;
         }
-    
+
         .card-opcao {
-            background: white; 
-            padding: 15px; 
-            margin-bottom: 8px; 
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); 
+            background: var(--card);
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 12px;
             display: flex;
-            /* Centralizado verticalmente */
-            align-items: center; 
-            cursor: pointer; 
-            border: 2px solid transparent;
-            overflow: hidden;
+            align-items: center;
+            cursor: pointer;
+            border: 1px solid rgba(255, 255, 255, .05);
+            transition: .25s;
         }
-    
-        .card-opcao:hover, 
-        .card-opcao.ativa { 
-            border-color: #ece9e4; 
-            background: #fffdf9; 
+
+        .card-opcao:hover,
+        .card-opcao.ativa {
+            border-color: var(--accent);
+            transform: translateY(-2px);
         }
-    
+
         .badge {
-            padding: 6px 10px; 
-            border-radius: 4px; 
+            padding: 6px 10px;
+            border-radius: 6px;
             margin-right: 15px;
-            font-weight: bold; 
-            min-width: 50px; 
+            font-weight: bold;
+            min-width: 50px;
             text-align: center;
-            border: 1px solid rgba(0, 0, 0, 0.1); 
-            flex-shrink: 0; 
-            color: #0e0d0d;
-            /* -webkit-text-stroke: .3px rgb(0, 0, 0); */
+            flex-shrink: 0;
+            color: #000;
         }
-        
-        /* opcao que exibi tudo com quebra de linha */
+
         .nome-linha {
             font-weight: 500;
-            word-break: break-word; 
+            word-break: break-word;
             overflow-wrap: break-word;
-            white-space: normal; 
+            white-space: normal;
             flex: 1;
         }
 
-        /* opcao que exibi sem quebra de linha mas com rolagem */
-        /* .nome-linha {
-            white-space: nowrap;
-            overflow-x: auto;
-            flex: 1;
-            min-width: 0;
-            padding-bottom: 2px;
-            scrollbar-width: none;
-        } */
-    
-        #resultado { 
-            font-size: 18px; 
-            color: #333; 
-            font-weight: bold; 
+        #resultado {
+            margin-top: 30px;
+            font-size: 18px;
+            color: var(--text);
+            font-weight: bold;
         }
     </style>
 </head>
+
 <body>
 
-    <div class="search-wrapper">
-        <input type="text" id="filtro" placeholder="Busque por sua linha" autocomplete="off">
+    <div class="theme-toggle" id="themeToggle">
+        <div class="toggle-circle"></div>
     </div>
-    
-    <div id="listaOpcoes"></div>
-    <div id="resultado"></div>
+
+    <div class="wrapper">
+
+        <div class="search-wrapper">
+            <input type="text" id="filtro" placeholder="Busque por sua linha" autocomplete="off">
+        </div>
+
+        <div id="listaOpcoes"></div>
+        <div id="resultado"></div>
+
+    </div>
 
     <script>
+
+        const root = document.documentElement;
+        const toggle = document.getElementById("themeToggle");
+
+        let savedTheme = localStorage.getItem("theme");
+        const systemDark = window.matchMedia("(prefers-color-scheme: dark)");
+
+        function applyTheme(theme) {
+            if (theme === "light") {
+                root.classList.add("light");
+            } else {
+                root.classList.remove("light");
+            }
+        }
+
+        if (savedTheme) {
+            applyTheme(savedTheme);
+        } else {
+            applyTheme(systemDark.matches ? "dark" : "light");
+        }
+
+        toggle.addEventListener("click", () => {
+            const isLight = root.classList.contains("light");
+            const newTheme = isLight ? "dark" : "light";
+            applyTheme(newTheme);
+            localStorage.setItem("theme", newTheme);
+        });
+
+        systemDark.addEventListener("change", e => {
+            if (!localStorage.getItem("theme")) {
+                applyTheme(e.matches ? "dark" : "light");
+            }
+        });
+
+
         let dadosOriginais = [];
         let indiceAtivo = -1;
         const input = document.getElementById('filtro');
@@ -132,7 +214,7 @@
         function renderizar(termo = "") {
             listaOpcoes.innerHTML = '';
             indiceAtivo = -1;
-            
+
             const listaOrdenada = [...dadosOriginais].sort((a, b) => {
                 const prioridade = ["Ceilândia", "Samambaia"];
                 if (prioridade.includes(a.nome) && !prioridade.includes(b.nome)) return -1;
@@ -142,32 +224,32 @@
 
             const filtrados = listaOrdenada.filter(item => {
                 const t = termo.toLowerCase();
-                return (item.nome && item.nome.toLowerCase().includes(t)) || 
-                       (item.numero && item.numero.includes(t));
+                return (item.nome && item.nome.toLowerCase().includes(t)) ||
+                    (item.numero && item.numero.includes(t));
             });
 
             filtrados.forEach((item) => {
                 const card = document.createElement('div');
                 card.className = 'card-opcao';
                 const cor = item.cor_operadora || '#eeeeee';
-                
+
                 card.innerHTML = `
-                    <span class="badge" style="background-color: ${cor}">${item.numero || ""}</span> 
-                    <span class="nome-linha">${item.nome}</span>
-                `;
-                
+<span class="badge" style="background-color:${cor}">${item.numero || ""}</span>
+<span class="nome-linha">${item.nome}</span>
+`;
+
                 card.onclick = () => selecionar(item);
                 listaOpcoes.appendChild(card);
             });
-            
+
             listaOpcoes.style.display = filtrados.length > 0 ? 'block' : 'none';
         }
 
         function selecionar(item) {
             display.innerHTML = `
-                <div>Você escolheu: ${item.nome}</div>
-                <div>Route ID: ${item.route_id}</div>
-            `;
+<div>Você escolheu: ${item.nome}</div>
+<div>Route ID: ${item.route_id}</div>
+`;
             input.value = '';
             listaOpcoes.style.display = 'none';
             input.blur();
@@ -194,6 +276,9 @@
         input.addEventListener('input', (e) => renderizar(e.target.value));
         input.addEventListener('focus', () => renderizar(input.value));
         document.addEventListener('click', (e) => { if (!e.target.closest('.search-wrapper')) listaOpcoes.style.display = 'none'; });
+
     </script>
+
 </body>
+
 </html>
