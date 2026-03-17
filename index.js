@@ -160,9 +160,9 @@ app.get('/linha/:numero', async (req, res) => {
       nome: m.longName,
       cor_operadora: m.color,
       preco: m.price,
-      viagens: viagensFormatadas,
-      grade_horaria: timetableFormatado,
-      itinerarios: itinerariosFormatados
+      viagens: viagensFormatadas.sort((a, b) => a.directionId - b.directionId),
+      grade_horaria: timetableFormatado.sort((a, b) => (a.sentido === "Ida" ? -1 : 1)),
+      itinerarios: itinerariosFormatados.sort((a, b) => (a.sentido === "Ida" ? -1 : 1))
     });
 
   } catch (error) {
